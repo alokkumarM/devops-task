@@ -1,61 +1,60 @@
-# Logo Server
+CI/CD Pipeline for a Node.js Application
+This project demonstrates a complete, automated CI/CD pipeline for a Node.js web application. The pipeline uses Jenkins to build, test, and deploy the application as a Docker container on AWS.
 
-A simple Express.js web server that serves the Swayatt logo image.
+Public URL of Deployed Application: http://3.111.23.80:3000
 
-## What is this app?
+Setup & Deployment Guide
 
-This is a lightweight Node.js application built with Express.js that serves a single logo image (`logoswayatt.png`) when accessed through a web browser. When you visit the root URL, the server responds by displaying the Swayatt logo.
+The pipeline is defined in the Jenkinsfile and automates the following stages:
 
-## Prerequisites
+Build and Test: Installs dependencies (npm install) and runs automated tests (npm test). The pipeline stops if tests fail.
 
-- Node.js (version 12 or higher)
-- npm (Node Package Manager)
+Build Docker Image: Uses the Dockerfile to create a versioned Docker image of the application, tagged with the Jenkins build number.
 
-## Installation
+Push to AWS ECR: The image is pushed to a private and secure Amazon Elastic Container Registry (ECR) repository.
 
-1. Clone or download this repository
-2. Navigate to the project directory:
-   ```bash
-   cd "devops task"
-   ```
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
+Deploy on EC2: The final stage stops the old container and runs a new one from the updated image pulled from ECR, making the changes live.
+Tools & Services Used
+Cloud Provider: Amazon Web Services (AWS) for all infrastructure.
 
-## How to Start the App
+Compute: AWS EC2 (t2.micro with Amazon Linux 2023) to host the Jenkins server and the final application container.
 
-Run the following command:
-```bash
-npm start
-```
+Container Registry: AWS ECR to securely store versioned Docker images.
 
-The server will start and display:
-```
-Server running on http://localhost:3000
-```
+Security: AWS IAM Roles for secure, keyless access from Jenkins to ECR, and Security Groups as a virtual firewall.
 
-## Usage
+Monitoring: AWS CloudWatch for basic EC2 instance metrics.
 
-Once the server is running, open your web browser and navigate to:
-```
-http://localhost:3000
-```
+CI/CD Server: Jenkins to orchestrate the entire automated workflow.
 
-You will see the Swayatt logo displayed in your browser.
+Containerization: Docker to package the application into a portable, reproducible image.
 
-## Project Structure
+Source Control: GitHub to host the source code and trigger the pipeline via webhooks.
+Challenges Faced & How You Solved Them
+Challenge: Container Exited Immediately.
 
-```
-├── app.js              # Main server file
-├── package.json        # Project dependencies and scripts
-├── logoswayatt.png     # Logo image file
-└── README.md          # This file
-```
+Problem: The deployed Docker container would start and then immediately stop. docker ps showed no running containers, but docker ps -a showed an "Exited" status.
 
-## Technical Details
+Solution: We inspected the logs with docker logs <container-name> and found the error: Error: Cannot find module '/usr/src/app/server.js'. The root cause was a typo in the Dockerfile: the application's entrypoint was app.js, but the CMD instruction was calling server.js. Correcting this line to CMD [ "node", "app.js" ] solved the issue.
 
-- **Framework**: Express.js
-- **Port**: 3000
-- **Endpoint**: GET `/` - serves the logo image
-- **File served**: `logoswayatt.png`
+Challenge: Incomplete Source Repository.
+
+Problem: Initially, the troubleshooting was difficult because the forked repository was missing the actual application code (app.js, package.json, etc.). This was the true origin of the "Cannot find module" error.
+
+Solution: We identified that the application files were missing. We created the necessary files (app.js, package.json, and a test/test.js file) on the local machine and pushed them to the GitHub repository, which allowed the pipeline to finally build a complete and working image.
+
+Challenge: Jenkins Node Was Offline.
+
+Problem: The main Jenkins node was marked with a red cross and would not run any jobs.
+
+Solution: This was diagnosed as a default Jenkins monitoring feature. On a small t2.micro instance with limited disk space, the "Free Disk Space" monitor automatically takes the node offline. The fix was to go to Manage Jenkins -> Nodes -> Built-in Node -> Configure and disable this monitor.
+
+Possible Improvements If Given More Time
+Infrastructure as Code (IaC): I would use Terraform to define all AWS resources (EC2, ECR, IAM, etc.) as code. This would make the entire environment version-controlled, automated, and easily reproducible.
+
+Separate Build Environment: I would configure Jenkins to use a separate agent (worker) node for running builds. This improves security and performance by isolating the build environment from the Jenkins master.
+
+Advanced Deployment Strategy: I would implement a Blue/Green deployment using an Application Load Balancer and an Auto Scaling Group. This would allow for zero-downtime releases by deploying the new version alongside the old one and only switching traffic after health checks pass.
+
+Enhanced Security Scanning: I would add a security stage to the pipeline using a tool like Trivy to scan the Docker image for known vulnerabilities before pushing it to ECR.
+
