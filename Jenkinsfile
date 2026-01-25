@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         
-        AWS_ACCOUNT_ID = "864981754239" 
+        AWS_ACCOUNT_ID = "864981739" 
         AWS_DEFAULT_REGION = "ap-south-1" 
         
         ECR_REPOSITORY_NAME = "devops-task-app"
